@@ -80,17 +80,19 @@ COPY src/ComputationContainer/ /QuickMPC
 RUN true
 COPY src/Proto/ /Proto
 RUN true
-COPY src/ComputationContainer/.cache /root/.cache
-RUN true
 COPY src/ComputationContainer/sa.json /root/sa.json
 WORKDIR /QuickMPC
 ARG BUILD_OPT
 ENV BUILD_OPT=${BUILD_OPT}
 RUN echo ${BUILD_OPT}
 # 実行ファイル生成
-RUN bazel build //:all ${BUILD_OPT}
+RUN --mount=type=cache,target=/root/.cache \
+    bazel build //:all ${BUILD_OPT}
+RUN --mount=type=cache,target=/root/.cache \
+    cp /QuickMPC/bazel-bin/computation_container /QuickMPC/computation_container
 # Collect depended shared libraries
-RUN mkdir -p /QuickMPC/__shared_libs && \
+RUN --mount=type=cache,target=/root/.cache \
+    mkdir -p /QuickMPC/__shared_libs && \
     ldd /QuickMPC/bazel-bin/computation_container | perl -pe 's/\s+/\n/g' | grep '^/' | \
     xargs -I{} cp {} /QuickMPC/__shared_libs
 
@@ -105,7 +107,7 @@ RUN apk update && \
     # 公式イメージの upgrade がされていないため
     apk upgrade
 RUN true
-COPY --from=builder /QuickMPC/bazel-bin/computation_container /QuickMPC/bazel-bin/computation_container
+COPY --from=builder /QuickMPC/computation_container /QuickMPC/bazel-bin/computation_container
 RUN true
 COPY --from=builder /QuickMPC/__shared_libs/. /lib/
 RUN true
